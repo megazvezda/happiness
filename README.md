@@ -1,0 +1,1 @@
+Timetable should be read easily by the program and then transformed into an .ics file.
