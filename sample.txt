@@ -1,0 +1,430 @@
+
+My this semester lecture schedule 2026-2027 AY autumn semester lecture schedule Monday 2026-09-01 — 2026-12-20
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+LectureTime
+
+
+WeekSubgroup
+Subject
+
+
+Auditorium
+
+
+Lecturer
+
+
+
+
+
+Type
+
+
+3
+12:10-13:45
+
+0
+Probability Theory and Mathematical Statistics (FMSAB20325)
+
+
+P3(TRIII) 106
+
+
+Dr. Vilma Nekrašaitė-Liegė
+
+
+
+
+
+Lectures
+
+
+4
+14:30-16:05
+
+0
+Probability Theory and Mathematical Statistics (FMSAB20325)
+
+
+P3(TRIII) 206
+
+
+Assoc Prof Dr. Rūta Simanavičienė
+
+
+
+
+
+Practical exercises (practical work)
+
+
+5
+16:20-17:551
+
+0
+Probability Theory and Mathematical Statistics (FMSAB20325)
+
+
+P3(TRIII) 206
+
+
+Assoc Prof Dr. Rūta Simanavičienė
+
+
+
+
+
+Laboratory work (laboratory works)
+
+
+Tuesday 2026-09-01 — 2026-12-20
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+LectureTime
+
+
+WeekSubgroup
+Subject
+
+
+
+
+
+
+
+AuditoriumLecturer
+Type
+
+
+
+
+
+5
+16:20-17:55
+
+0
+Computer Networks (ELKRB24301)
+
+
+
+P3(TRIII) 314
+
+
+
+Dr. Martynas Šapurov
+Laboratory work,(laboratory,works)
+
+
+
+
+
+6
+18:10-19:45
+
+0
+Computer Networks (ELKRB24301)
+
+
+
+P2 153
+
+
+
+Dr. Arūnas Statkus
+Lectures
+
+
+
+
+
+Wednesday 2026-09-01 — 2026-12-20
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+LectureTime
+
+
+WeekSubgroup
+Subject
+Auditorium
+
+
+
+
+
+Lecturer
+
+
+
+Type
+
+
+
+1
+08:30-10:05
+
+0
+Operating Systems (FMITB24101)
+S5(SRK-II) 205
+
+
+
+
+
+Assoc Prof Dr. Inga Tumasonienė
+
+
+
+Lectures
+
+
+
+3
+12:10-13:451
+
+0
+Operating Systems (FMITB24101)
+P3(TRIII) 201
+
+
+
+
+
+Assoc Prof Dr. Inga Tumasonienė
+
+
+
+Practical exercises (practical work)
+
+
+
+3
+12:10-13:452
+
+0
+Operating Systems (FMITB24101)
+S6(SRL-I) 501
+
+
+
+
+
+Assoc Prof Dr. Inga Tumasonienė
+
+
+
+Practical exercises (practical work)
+
+
+
+Thursday 2026-09-01 — 2026-12-20
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+LectureTime
+
+
+WeekSubgroup
+Subject
+
+Auditorium
+
+
+Lecturer
+
+
+
+
+Type
+
+
+
+
+2
+10:20-11:552
+
+0
+Economics (VVEIB17188)
+
+P3(TRIII) 114
+
+
+Yeganeh Arablousabet
+
+
+
+
+Practical exercises (practical work)
+
+
+
+
+3
+12:10-13:45
+
+0
+Economics (VVEIB17188)
+
+P3(TRIII) 114
+
+
+Yeganeh Arablousabet
+
+
+
+
+Lectures
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Friday 2026-09-01 — 2026-12-20
+
+
+
+
+
+
+
+
+
+LectureTime
+
+
+WeekSubgroup
+Subject
+Auditorium
+Lecturer
+Type
+
+
+1
+08:30-10:051
+
+0
+Public Communication (KIKOB17047)
+S2(SRA-I) A02
+Angelė Tamulevičiūtė- Šekštelienė
+Lectures
+
+
+2
+10:20-11:551
+
+0
+Public Communication (KIKOB17047)
+S2(SRA-I) A02
+Angelė Tamulevičiūtė- Šekštelienė
+Practical exercises (practical work)
+
+
+3
+12:10-13:45
+
+0
+Algorithms and Data Structures (FMISB23204)
+S6(SRL-I) 401
+Dr. Romanas TumasonisLectures
+
+
+
+4
+14:30-16:05
+
+0
+Algorithms and Data Structures (FMISB23204)
+S6(SRL-I) 501
+Dr. Romanas Tumasonis
+Practical exercises (practical work)
+
+
+
+
+
+
+
+
+
+

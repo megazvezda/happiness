@@ -2,8 +2,9 @@ module github.com/megazvezda/happiness
 
 go 1.26.2
 
+require github.com/coregx/gxpdf v0.9.4
+
 require (
-	github.com/coregx/gxpdf v0.9.4 // indirect
 	github.com/richardlehane/mscfb v1.0.4 // indirect
 	github.com/richardlehane/msoleps v1.0.4 // indirect
 	github.com/tiendc/go-deepcopy v1.7.1 // indirect
