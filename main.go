@@ -1,8 +1,12 @@
 package main
 
 import (
+	"crypto/sha1"
+	"encoding/hex"
+	"flag"
 	"fmt"
 	"log"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -12,91 +16,185 @@ import (
 	"github.com/megazvezda/happiness/models"
 )
 
+const (
+	weekOneAnchor = "2026-09-16"
+	icsDateFormat = "20060102T150405"
+)
+
+var lecturePattern = regexp.MustCompile(`(?m)^(\d+)\s+(\d{2}:\d{2})-(\d{2}:\d{2})([0-2]?)\s+(\d+)\s+([^\r\n]+)\s+([^\r\n]+)\s+([^\r\n]+?)\s*(Lectures|Practical exercises[^\r\n]*|Laboratory work[^\r\n]*)`)
+var weekdayPattern = regexp.MustCompile(`(?m)(Monday|Tuesday|Wednesday|Thursday|Friday)\s+\d{4}-\d{2}-\d{2}\s+[—-]\s+\d{4}-\d{2}-\d{2}`)
+
 func main() {
-	doc, err := gxpdf.Open("timetable_2026-09-12.pdf")
+	inputPath := flag.String("input", "timetable_2026-09-12.pdf", "timetable PDF path")
+	outputPath := flag.String("output", "timetable.ics", "calendar output path")
+	flag.Parse()
+
+	doc, err := gxpdf.Open(*inputPath)
 	if err != nil {
-		log.Fatalf("failed to open the pdf, aborting\n")
+		log.Fatalf("failed to open PDF: %v", err)
 	}
 	defer doc.Close()
 
-	tables := doc.ExtractTables()
+	week, err := parseTables(doc.ExtractTables())
+	if err != nil {
+		log.Fatal(err)
+	}
+	if err := writeICS(*outputPath, week); err != nil {
+		log.Fatalf("failed to write calendar: %v", err)
+	}
+	log.Printf("wrote %s", *outputPath)
+}
 
-	d1 := []string{}
+func parseTables(tables []*gxpdf.Table) (models.Week, error) {
+	week := make(models.Week, 5)
+	for i := range week {
+		week[i] = models.Day{}
+	}
+	dayIndexes := map[string]int{
+		"Monday": 0, "Tuesday": 1, "Wednesday": 2, "Thursday": 3, "Friday": 4,
+	}
 
 	for _, table := range tables {
-		rows := table.Rows()
-		for _, row := range rows {
+		var rows []string
+		for _, row := range table.Rows() {
 			for _, text := range row {
-				d1 = append(d1, text)
+				text = strings.ReplaceAll(text, "\r\n", " ")
+				text = strings.ReplaceAll(text, "\n", " ")
+				rows = append(rows, text)
 			}
-			//d1 = append(d1, "\n")
 		}
-		//d1 = append(d1, " ")
-	}
 
-	sanitizedRows := make([]string, len(d1))
-	for i, row := range d1 {
-		// handling both Unix \n and Windows \r\n
-		cleaned := strings.ReplaceAll(row, "\r\n", " ")
-		cleaned = strings.ReplaceAll(cleaned, "\n", " ")
-		sanitizedRows[i] = cleaned
-	}
-
-	//data := string(strings.Join(sanitizedRows, "\n"))
-	pattern := `(?m)^(\d+)\s+(\d{2}:\d{2})-(\d{2}:\d{2})([0-2]?)\s+(\d+)\s+([^\r\n]+)\s+([^\r\n]+)\s+([^\r\n]+?)\s*(Lectures|Practical exercises[^\r\n]*|Laboratory work[^\r\n]*)`
-	re := regexp.MustCompile(pattern)
-
-	data := strings.Join(sanitizedRows, "\n")
-	matches := re.FindAllStringSubmatch(data, -1)
-
-	d := models.Day{}
-	for _, match := range matches {
-		if len(match) == 10 {
-			position, err := strconv.ParseUint(match[1], 10, 8)
-			if err != nil {
-				log.Fatalf("failed to convert to uint8")
+		text := strings.Join(rows, "\n")
+		headings := weekdayPattern.FindAllStringSubmatchIndex(text, -1)
+		for headingIndex, heading := range headings {
+			dayIndex, ok := dayIndexes[text[heading[2]:heading[3]]]
+			if !ok {
+				continue
 			}
-			startTime, err := time.Parse("15:04", match[2])
-			if err != nil {
-				log.Fatal("failed to convert startTime")
+			sectionEnd := len(text)
+			if headingIndex+1 < len(headings) {
+				sectionEnd = headings[headingIndex+1][0]
 			}
-			endTime, err := time.Parse("15:04", match[3])
-			if err != nil {
-				log.Fatalf("failed to convert endTime")
+			for _, match := range lecturePattern.FindAllStringSubmatch(text[heading[1]:sectionEnd], -1) {
+				lecture, err := parseLecture(match)
+				if err != nil {
+					return nil, err
+				}
+				week[dayIndex] = append(week[dayIndex], lecture)
 			}
-
-			weekStr := match[4]
-			if weekStr == "" {
-				weekStr = "0"
-			}
-			week, err := strconv.ParseUint(weekStr, 10, 8)
-			if err != nil {
-				log.Fatalf("failed to convert to uint8")
-			}
-			subgroup, err := strconv.ParseUint(match[5], 10, 8)
-			if err != nil {
-				log.Fatalf("failed to convert to uint8")
-			}
-
-			l := models.Lecture{
-				Position:    uint8(position),
-				StartTime:   startTime,
-				EndTime:     endTime,
-				Week:        uint8(week),
-				Subgroup:    uint8(subgroup),
-				SubjectName: match[6],
-				Auditorium:  match[7],
-				Lecturer:    match[8],
-				Type:        match[9],
-			}
-			d = append(d, l)
 		}
 	}
-	w := models.Week{d}
-	for _, day := range w {
-		for _, lecture := range day {
-			fmt.Printf("%v\n%v\n%v\n%v\n%v\n%v\n%v\n%v\n%v", lecture.Auditorium, lecture.StartTime, lecture.EndTime, lecture.Week, lecture.Subgroup, lecture.SubjectName, lecture.Auditorium, lecture.Lecturer, lecture.Type)
-		}
-		fmt.Print('\n')
+	return week, nil
+}
+
+func parseLecture(match []string) (models.Lecture, error) {
+	if len(match) != 10 {
+		return models.Lecture{}, fmt.Errorf("unexpected lecture match with %d fields", len(match))
 	}
+
+	position, err := strconv.ParseUint(match[1], 10, 8)
+	if err != nil {
+		return models.Lecture{}, fmt.Errorf("invalid lecture position %q: %w", match[1], err)
+	}
+	startTime, err := time.Parse("15:04", match[2])
+	if err != nil {
+		return models.Lecture{}, fmt.Errorf("invalid start time %q: %w", match[2], err)
+	}
+	endTime, err := time.Parse("15:04", match[3])
+	if err != nil {
+		return models.Lecture{}, fmt.Errorf("invalid end time %q: %w", match[3], err)
+	}
+
+	weekNumber := uint64(0)
+	if match[4] != "" {
+		weekNumber, err = strconv.ParseUint(match[4], 10, 8)
+		if err != nil || weekNumber > 2 {
+			return models.Lecture{}, fmt.Errorf("invalid week number %q", match[4])
+		}
+	}
+	subgroup, err := strconv.ParseUint(match[5], 10, 8)
+	if err != nil {
+		return models.Lecture{}, fmt.Errorf("invalid subgroup %q: %w", match[5], err)
+	}
+
+	return models.Lecture{
+		Position:    uint8(position),
+		StartTime:   startTime,
+		EndTime:     endTime,
+		Week:        uint8(weekNumber),
+		Subgroup:    uint8(subgroup),
+		SubjectName: strings.TrimSpace(match[6]),
+		Auditorium:  strings.TrimSpace(match[7]),
+		Lecturer:    strings.TrimSpace(match[8]),
+		Type:        strings.TrimSpace(match[9]),
+	}, nil
+}
+
+func writeICS(path string, week models.Week) error {
+	anchor, err := time.Parse("2006-01-02", weekOneAnchor)
+	if err != nil {
+		return fmt.Errorf("invalid recurrence anchor: %w", err)
+	}
+	monday := startOfWeek(anchor)
+
+	var output strings.Builder
+	output.WriteString("BEGIN:VCALENDAR\r\n")
+	output.WriteString("VERSION:2.0\r\n")
+	output.WriteString("PRODID:-//megazvezda/happiness//Timetable//EN\r\n")
+	output.WriteString("CALSCALE:GREGORIAN\r\n")
+
+	for dayIndex, day := range week {
+		if dayIndex >= 7 {
+			return fmt.Errorf("timetable contains more than seven weekday tables")
+		}
+		for lectureIndex, lecture := range day {
+			if lecture.Week > 2 {
+				return fmt.Errorf("lecture %d on weekday %d has invalid week %d", lectureIndex, dayIndex, lecture.Week)
+			}
+			start := monday.AddDate(0, 0, dayIndex)
+			if lecture.Week == 2 {
+				start = start.AddDate(0, 0, 7)
+			}
+			start = time.Date(start.Year(), start.Month(), start.Day(), lecture.StartTime.Hour(), lecture.StartTime.Minute(), 0, 0, time.UTC)
+			end := time.Date(start.Year(), start.Month(), start.Day(), lecture.EndTime.Hour(), lecture.EndTime.Minute(), 0, 0, time.UTC)
+
+			output.WriteString("BEGIN:VEVENT\r\n")
+			output.WriteString("UID:" + eventUID(dayIndex, lecture) + "\r\n")
+			output.WriteString("DTSTAMP:" + time.Now().UTC().Format(icsDateFormat) + "Z\r\n")
+			output.WriteString("DTSTART:" + start.Format(icsDateFormat) + "\r\n")
+			output.WriteString("DTEND:" + end.Format(icsDateFormat) + "\r\n")
+			if lecture.Week == 0 {
+				output.WriteString("RRULE:FREQ=WEEKLY\r\n")
+			} else {
+				output.WriteString("RRULE:FREQ=WEEKLY;INTERVAL=2\r\n")
+			}
+			output.WriteString("SUMMARY:" + escapeICS(lecture.SubjectName) + "\r\n")
+			output.WriteString("LOCATION:" + escapeICS(lecture.Auditorium) + "\r\n")
+			output.WriteString("DESCRIPTION:" + escapeICS(fmt.Sprintf("%s; subgroup %d", lecture.Type, lecture.Subgroup)) + "\r\n")
+			output.WriteString("END:VEVENT\r\n")
+		}
+	}
+	output.WriteString("END:VCALENDAR\r\n")
+
+	return os.WriteFile(path, []byte(output.String()), 0644)
+}
+
+func startOfWeek(date time.Time) time.Time {
+	daysSinceMonday := (int(date.Weekday()) + 6) % 7
+	return date.AddDate(0, 0, -daysSinceMonday)
+}
+
+func eventUID(dayIndex int, lecture models.Lecture) string {
+	value := fmt.Sprintf("%d|%d|%s|%s|%s|%s|%d", dayIndex, lecture.Position, lecture.SubjectName, lecture.Auditorium, lecture.StartTime.Format("15:04"), lecture.EndTime.Format("15:04"), lecture.Week)
+	sum := sha1.Sum([]byte(value))
+	return hex.EncodeToString(sum[:]) + "@happiness"
+}
+
+func escapeICS(value string) string {
+	value = strings.ReplaceAll(value, `\`, `\\`)
+	value = strings.ReplaceAll(value, ";", `\;`)
+	value = strings.ReplaceAll(value, ",", `\,`)
+	value = strings.ReplaceAll(value, "\r\n", `\n`)
+	value = strings.ReplaceAll(value, "\n", `\n`)
+	return value
 }
