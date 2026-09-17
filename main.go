@@ -22,12 +22,20 @@ const (
 )
 
 var lecturePattern = regexp.MustCompile(`(?m)^(\d+)\s+(\d{2}:\d{2})-(\d{2}:\d{2})([0-2]?)\s+(\d+)\s+([^\r\n]+)\s+([^\r\n]+)\s+([^\r\n]+?)\s*(Lectures|Practical exercises[^\r\n]*|Laboratory work[^\r\n]*)`)
-var weekdayPattern = regexp.MustCompile(`(?m)(Monday|Tuesday|Wednesday|Thursday|Friday)\s+\d{4}-\d{2}-\d{2}\s+[—-]\s+\d{4}-\d{2}-\d{2}`)
+var weekdayPattern = regexp.MustCompile(`(?m)(Monday|Tuesday|Wednesday|Thursday|Friday)\s+(\d{4}-\d{2}-\d{2})\s+[—-]\s+(\d{4}-\d{2}-\d{2})`)
 
 func main() {
 	inputPath := flag.String("input", "timetable_2026-09-12.pdf", "timetable PDF path")
 	outputPath := flag.String("output", "timetable.ics", "calendar output path")
+	botMode := flag.Bool("bot", false, "run the Telegram bot")
 	flag.Parse()
+
+	if *botMode {
+		if err := runBot(); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
 
 	doc, err := gxpdf.Open(*inputPath)
 	if err != nil {
@@ -35,17 +43,23 @@ func main() {
 	}
 	defer doc.Close()
 
-	week, err := parseTables(doc.ExtractTables())
+	schedule, err := parseSchedule(doc.ExtractTables())
 	if err != nil {
 		log.Fatal(err)
 	}
-	if err := writeICS(*outputPath, week); err != nil {
+	if err := writeICS(*outputPath, schedule); err != nil {
 		log.Fatalf("failed to write calendar: %v", err)
 	}
 	log.Printf("wrote %s", *outputPath)
 }
 
-func parseTables(tables []*gxpdf.Table) (models.Week, error) {
+type Schedule struct {
+	Week      models.Week
+	StartDate time.Time
+	EndDate   time.Time
+}
+
+func parseSchedule(tables []*gxpdf.Table) (Schedule, error) {
 	week := make(models.Week, 5)
 	for i := range week {
 		week[i] = models.Day{}
@@ -53,6 +67,7 @@ func parseTables(tables []*gxpdf.Table) (models.Week, error) {
 	dayIndexes := map[string]int{
 		"Monday": 0, "Tuesday": 1, "Wednesday": 2, "Thursday": 3, "Friday": 4,
 	}
+	var startDate, endDate time.Time
 
 	for _, table := range tables {
 		var rows []string
@@ -71,6 +86,20 @@ func parseTables(tables []*gxpdf.Table) (models.Week, error) {
 			if !ok {
 				continue
 			}
+			headingStart, err := time.ParseInLocation("2006-01-02", text[heading[4]:heading[5]], time.Local)
+			if err != nil {
+				return Schedule{}, fmt.Errorf("invalid semester start date: %w", err)
+			}
+			headingEnd, err := time.ParseInLocation("2006-01-02", text[heading[6]:heading[7]], time.Local)
+			if err != nil {
+				return Schedule{}, fmt.Errorf("invalid semester end date: %w", err)
+			}
+			if startDate.IsZero() || headingStart.Before(startDate) {
+				startDate = headingStart
+			}
+			if endDate.IsZero() || headingEnd.After(endDate) {
+				endDate = headingEnd.Add(24*time.Hour - time.Second)
+			}
 			sectionEnd := len(text)
 			if headingIndex+1 < len(headings) {
 				sectionEnd = headings[headingIndex+1][0]
@@ -78,13 +107,17 @@ func parseTables(tables []*gxpdf.Table) (models.Week, error) {
 			for _, match := range lecturePattern.FindAllStringSubmatch(text[heading[1]:sectionEnd], -1) {
 				lecture, err := parseLecture(match)
 				if err != nil {
-					return nil, err
+					return Schedule{}, err
 				}
 				week[dayIndex] = append(week[dayIndex], lecture)
 			}
 		}
 	}
-	return week, nil
+	return Schedule{
+		Week:      week,
+		StartDate: startDate,
+		EndDate:   endDate,
+	}, nil
 }
 
 func parseLecture(match []string) (models.Lecture, error) {
@@ -130,7 +163,7 @@ func parseLecture(match []string) (models.Lecture, error) {
 	}, nil
 }
 
-func writeICS(path string, week models.Week) error {
+func writeICS(path string, schedule Schedule) error {
 	anchor, err := time.Parse("2006-01-02", weekOneAnchor)
 	if err != nil {
 		return fmt.Errorf("invalid recurrence anchor: %w", err)
@@ -143,7 +176,7 @@ func writeICS(path string, week models.Week) error {
 	output.WriteString("PRODID:-//megazvezda/happiness//Timetable//EN\r\n")
 	output.WriteString("CALSCALE:GREGORIAN\r\n")
 
-	for dayIndex, day := range week {
+	for dayIndex, day := range schedule.Week {
 		if dayIndex >= 7 {
 			return fmt.Errorf("timetable contains more than seven weekday tables")
 		}
@@ -164,9 +197,9 @@ func writeICS(path string, week models.Week) error {
 			output.WriteString("DTSTART:" + start.Format(icsDateFormat) + "\r\n")
 			output.WriteString("DTEND:" + end.Format(icsDateFormat) + "\r\n")
 			if lecture.Week == 0 {
-				output.WriteString("RRULE:FREQ=WEEKLY\r\n")
+				output.WriteString("RRULE:FREQ=WEEKLY;UNTIL=" + schedule.EndDate.UTC().Format(icsDateFormat) + "Z\r\n")
 			} else {
-				output.WriteString("RRULE:FREQ=WEEKLY;INTERVAL=2\r\n")
+				output.WriteString("RRULE:FREQ=WEEKLY;INTERVAL=2;UNTIL=" + schedule.EndDate.UTC().Format(icsDateFormat) + "Z\r\n")
 			}
 			output.WriteString("SUMMARY:" + escapeICS(lecture.SubjectName) + "\r\n")
 			output.WriteString("LOCATION:" + escapeICS(lecture.Auditorium) + "\r\n")
