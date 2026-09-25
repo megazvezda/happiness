@@ -1,0 +1,4 @@
+#exclude all test files to not accidentialy leak someone's schedule
+*.pdf
+*.ics
+*.txt
