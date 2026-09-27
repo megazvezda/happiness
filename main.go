@@ -1,12 +1,12 @@
 package main
 
+// if you change go code, rebuild it for wasm:
+// GOOS=js GOARCH=wasm go build -o public/app.wasm .
+
 import (
 	"crypto/sha1"
 	"encoding/hex"
-	"flag"
 	"fmt"
-	"log"
-	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -51,34 +51,13 @@ type Day []Lecture
 
 type Week []Day
 
-func main() {
-	inputPath := flag.String("input", "timetable_2026-09-12.pdf", "timetable PDF path")
-	outputPath := flag.String("output", "timetable.ics", "calendar output path")
-	flag.Parse()
-
-	doc, err := gxpdf.Open(*inputPath)
-	if err != nil {
-		log.Fatalf("failed to open PDF: %v", err)
-	}
-	defer doc.Close()
-
-	schedule, err := parseSchedule(doc.ExtractTables())
-	if err != nil {
-		log.Fatal(err)
-	}
-	if err := writeICS(*outputPath, schedule); err != nil {
-		log.Fatalf("failed to write calendar: %v", err)
-	}
-	log.Printf("wrote %s", *outputPath)
-}
-
 type Schedule struct {
 	Week      Week
 	StartDate time.Time
 	EndDate   time.Time
 }
 
-func parseSchedule(tables []*gxpdf.Table) (Schedule, error) {
+func parseScheduleTables(tables []*gxpdf.Table) (Schedule, error) {
 	var rows []string
 	for _, table := range tables {
 		for _, row := range table.Rows() {
@@ -90,6 +69,16 @@ func parseSchedule(tables []*gxpdf.Table) (Schedule, error) {
 		}
 	}
 	return parseScheduleText(strings.Join(rows, "\n"))
+}
+
+func parseSchedule(pdfBytes []byte) (Schedule, error) {
+	doc, err := gxpdf.OpenFromBytes(pdfBytes)
+	if err != nil {
+		return Schedule{}, fmt.Errorf("failed to open pdf: %w", err)
+	}
+	defer doc.Close()
+
+	return parseScheduleTables(doc.ExtractTables())
 }
 
 func parseScheduleText(text string) (Schedule, error) {
@@ -184,13 +173,13 @@ func parseLecture(match []string) (Lecture, error) {
 	}, nil
 }
 
-func writeICS(path string, schedule Schedule) error {
+func writeICS(schedule Schedule) ([]byte, error) {
 	// this is implemented after it was decided to start the lecture times from their provided date range (e.g: "WeekdayName 2026-09-01 — 2026-12-20")
 	if schedule.StartDate.IsZero() {
-		return fmt.Errorf("schedule has no semester start date")
+		return nil, fmt.Errorf("schedule has no semester start date")
 	}
 	if schedule.EndDate.IsZero() {
-		return fmt.Errorf("schedule has no semester end date")
+		return nil, fmt.Errorf("schedule has no semester end date")
 	}
 	monday := startOfWeek(schedule.StartDate)
 
@@ -202,11 +191,11 @@ func writeICS(path string, schedule Schedule) error {
 
 	for dayIndex, day := range schedule.Week {
 		if dayIndex >= 7 {
-			return fmt.Errorf("timetable contains more than seven weekday tables")
+			return nil, fmt.Errorf("timetable contains more than seven weekday tables")
 		}
 		for lectureIndex, lecture := range day {
 			if lecture.Week > 2 {
-				return fmt.Errorf("lecture %d on weekday %d has invalid week %d", lectureIndex, dayIndex, lecture.Week)
+				return nil, fmt.Errorf("lecture %d on weekday %d has invalid week %d", lectureIndex, dayIndex, lecture.Week)
 			}
 			start := monday.AddDate(0, 0, dayIndex)
 			if start.Before(schedule.StartDate) {
@@ -237,7 +226,16 @@ func writeICS(path string, schedule Schedule) error {
 	}
 	output.WriteString("END:VCALENDAR\r\n")
 
-	return os.WriteFile(path, []byte(output.String()), 0644)
+	return []byte(output.String()), nil
+}
+
+func doConversion(pdfBytes []byte) ([]byte, error) {
+	schedule, err := parseSchedule(pdfBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	return writeICS(schedule)
 }
 
 func startOfWeek(date time.Time) time.Time {

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -60,13 +59,9 @@ func TestWriteICSUsesFirstWeekdayOnOrAfterSemesterStart(t *testing.T) {
 		EndDate:   time.Date(2026, 12, 20, 23, 59, 59, 0, time.Local),
 	}
 
-	path := t.TempDir() + string(os.PathSeparator) + "schedule.ics"
-	if err := writeICS(path, schedule); err != nil {
-		t.Fatalf("writeICS returned error: %v", err)
-	}
-	data, err := os.ReadFile(path)
+	data, err := writeICS(schedule)
 	if err != nil {
-		t.Fatalf("read generated ICS: %v", err)
+		t.Fatalf("writeICS returned error: %v", err)
 	}
 	output := string(data)
 	for _, expected := range []string{

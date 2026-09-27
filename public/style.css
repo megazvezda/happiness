@@ -1,0 +1,141 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  color: #222;
+  background: #fff;
+  font: 16px/1.5 system-ui, -apple-system, sans-serif;
+}
+
+.page {
+  width: min(680px, calc(100% - 32px));
+  margin: 64px auto;
+}
+
+h1 {
+  margin: 0 0 8px;
+  font-size: 32px;
+  font-weight: 600;
+}
+
+h2 {
+  margin: 0 0 20px;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.page > p {
+  margin: 0 0 32px;
+  color: #555;
+}
+
+.converter {
+  padding: 24px;
+  border: 1px solid #ccc;
+}
+
+.drop-zone {
+  display: flex;
+  min-height: 180px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px;
+  border: 1px dashed #888;
+  cursor: pointer;
+  text-align: center;
+}
+
+.drop-zone:hover,
+.drop-zone:focus-visible,
+.drop-zone.dragging {
+  border-color: #222;
+  background: #f5f5f5;
+  outline: none;
+}
+
+.drop-zone input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.drop-title {
+  font-weight: 600;
+}
+
+.drop-subtitle,
+.file-name,
+.status,
+.note {
+  color: #666;
+}
+
+.file-name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status {
+  margin: 0;
+  padding-top: 72px;
+  text-align: center;
+}
+
+button,
+.download-link {
+  padding: 10px 14px;
+  border: 1px solid #222;
+  border-radius: 2px;
+  font: inherit;
+}
+
+button {
+  color: #fff;
+  background: #222;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: .5;
+}
+
+.download-link {
+  display: block;
+  margin-top: 16px;
+  color: #222;
+  background: #fff;
+  cursor: pointer;
+  text-align: center;
+  text-decoration: none;
+}
+
+.download-link.disabled {
+  cursor: not-allowed;
+  opacity: .5;
+  pointer-events: none;
+}
+
+.note {
+  margin: 4px 0 0;
+  font-size: 14px;
+  text-align: center;
+}
+
+@media (max-width: 540px) {
+  .page {
+    margin: 32px auto;
+  }
+
+  .converter {
+    padding: 16px;
+  }
+
+}
