@@ -2,6 +2,7 @@ const go = new Go();
 const input = document.querySelector('#pdf-input');
 const dropZone = document.querySelector('#drop-zone');
 const status = document.querySelector('#status');
+const fileName = document.querySelector('#file-name');
 const downloadLink = document.querySelector('#download-link');
 
 let wasmReady = false;
@@ -13,6 +14,7 @@ function setStatus(message, state = '') {
 
 function showFile(file) {
   if (!file) {
+    fileName.textContent = '';
     downloadLink.classList.add('disabled');
     downloadLink.setAttribute('aria-disabled', 'true');
     return;
@@ -20,12 +22,14 @@ function showFile(file) {
 
   if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
     input.value = '';
+    fileName.textContent = '';
     downloadLink.classList.add('disabled');
     downloadLink.setAttribute('aria-disabled', 'true');
     setStatus('please choose a .pdf file', 'error');
     return;
   }
 
+  fileName.textContent = file.name;
   downloadLink.classList.toggle('disabled', !wasmReady);
   downloadLink.setAttribute('aria-disabled', String(!wasmReady));
   setStatus(wasmReady ? 'wasm loaded, ready to convert' : 'Loading converter', wasmReady ? 'ready' : '');
