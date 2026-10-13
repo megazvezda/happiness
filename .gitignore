@@ -3,4 +3,4 @@
 *.ics
 *.txt
 .vercel
-*.wasm
+#DONT REMOVEWASM FILES
